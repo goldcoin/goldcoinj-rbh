@@ -42,15 +42,18 @@ public class TestNet3Params extends AbstractBitcoinNetParams {
     public TestNet3Params() {
         super();
         id = ID_TESTNET;
-        packetMagic = 0x0b110907;
+        packetMagic = 0xb7e2aaef;
+        packetMagicBTC = 0x0b110907;
         interval = INTERVAL;
         targetTimespan = TARGET_TIMESPAN;
         maxTarget = Utils.decodeCompactBits(0x1d00ffffL);
-        port = 18333;
+        maxTargetScrypt = Utils.decodeCompactBits(0x1e0fffffL);
+        port = 19447;
         addressHeader = 111;
-        p2shHeader = 196;
+        p2shHeader = 58;
         dumpedPrivateKeyHeader = 239;
-        segwitAddressHrp = "tb";
+        dumpedPrivateKeyHeader2 = 239;
+        segwitAddressHrp = "tg";
         genesisBlock.setTime(1296688602L);
         genesisBlock.setDifficultyTarget(0x1d00ffffL);
         genesisBlock.setNonce(414098458);
@@ -59,13 +62,10 @@ public class TestNet3Params extends AbstractBitcoinNetParams {
         String genesisHash = genesisBlock.getHashAsString();
         checkState(genesisHash.equals("000000000933ea01ad0ee984209779baaec3ced90fa3f408719526f8d77f4943"));
         alertSigningKey = Utils.HEX.decode("04302390343f91cc401d56d68b123028bf52e5fca1939df127f63c6467cdf9c8e2c14b61104cf817d0b780da337893ecc4aaff1309e536162dabbdb45200ca2b0a");
+        checkpointPubKey = "04c28a8e186d8cba4cca3e71342f22687bf32525e41be5e0ec33082ee678516b3a6f9c3ae160c0155090c6244d9e7a1f4220179c6690efdc48259c3a3835b3df67";
 
         dnsSeeds = new String[] {
-                "testnet-seed.bitcoin.jonasschnelli.ch", // Jonas Schnelli
-                "seed.tbtc.petertodd.org",               // Peter Todd
-                "seed.testnet.bitcoin.sprovoost.nl",     // Sjors Provoost
-                "testnet-seed.bluematt.me",              // Matt Corallo
-                "bitcoin-testnet.bloqseeds.net",         // Bloq
+                "ios1.netseed.net"
         };
         addrSeeds = null;
         bip32HeaderP2PKHpub = 0x043587cf; // The 4 byte header that serializes in base58 to "tpub".
@@ -76,6 +76,10 @@ public class TestNet3Params extends AbstractBitcoinNetParams {
         majorityEnforceBlockUpgrade = TESTNET_MAJORITY_ENFORCE_BLOCK_UPGRADE;
         majorityRejectBlockOutdated = TESTNET_MAJORITY_REJECT_BLOCK_OUTDATED;
         majorityWindow = TESTNET_MAJORITY_WINDOW;
+
+        rbhHeight = 1457001;
+        rbhTime = 1550170301; // GMT: 14 February 2019 18:51:41;
+        rbhUTXOHeight = 301;
     }
 
     private static TestNet3Params instance;
@@ -97,7 +101,8 @@ public class TestNet3Params extends AbstractBitcoinNetParams {
     @Override
     public void checkDifficultyTransitions(final StoredBlock storedPrev, final Block nextBlock,
         final BlockStore blockStore) throws VerificationException, BlockStoreException {
-        if (!isDifficultyTransitionPoint(storedPrev.getHeight()) && nextBlock.getTime().after(testnetDiffDate)) {
+        int height = storedPrev.getHeight() + 1;
+        if (height < rbhHeight && !isDifficultyTransitionPoint(storedPrev.getHeight()) && nextBlock.getTime().after(testnetDiffDate)) {
             Block prev = storedPrev.getHeader();
 
             // After 15th February 2012 the rules on the testnet change to avoid people running up the difficulty
@@ -112,10 +117,10 @@ public class TestNet3Params extends AbstractBitcoinNetParams {
                 StoredBlock cursor = storedPrev;
                 while (!cursor.getHeader().equals(getGenesisBlock()) &&
                            cursor.getHeight() % getInterval() != 0 &&
-                           cursor.getHeader().getDifficultyTargetAsInteger().equals(getMaxTarget()))
+                           cursor.getHeader().getDifficultyTargetAsInteger(height).equals(getMaxTarget()))
                         cursor = cursor.getPrev(blockStore);
-                BigInteger cursorTarget = cursor.getHeader().getDifficultyTargetAsInteger();
-                BigInteger newTarget = nextBlock.getDifficultyTargetAsInteger();
+                BigInteger cursorTarget = cursor.getHeader().getDifficultyTargetAsInteger(height);
+                BigInteger newTarget = nextBlock.getDifficultyTargetAsInteger(height);
                 if (!cursorTarget.equals(newTarget))
                         throw new VerificationException("Testnet block transition that is not allowed: " +
                         Long.toHexString(cursor.getHeader().getDifficultyTarget()) + " vs " +
