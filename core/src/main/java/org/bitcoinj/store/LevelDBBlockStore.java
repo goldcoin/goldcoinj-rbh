@@ -71,7 +71,7 @@ public class LevelDBBlockStore implements BlockStore {
         if (db.get(CHAIN_HEAD_KEY) != null)
             return;   // Already initialised.
         Block genesis = context.getParams().getGenesisBlock().cloneAsHeader();
-        StoredBlock storedGenesis = new StoredBlock(genesis, genesis.getWork(), 0);
+        StoredBlock storedGenesis = new StoredBlock(genesis, genesis.getWork(0), 0);
         put(storedGenesis);
         setChainHead(storedGenesis);
     }

@@ -326,7 +326,7 @@ public class LevelDBFullPrunedBlockStore implements FullPrunedBlockStore {
             // Set up the genesis block. When we start out fresh, it is by
             // definition the top of the chain.
             StoredBlock storedGenesisHeader = new StoredBlock(params.getGenesisBlock().cloneAsHeader(),
-                    params.getGenesisBlock().getWork(), 0);
+                    params.getGenesisBlock().getWork(0), 0);
             // The coinbase in the genesis block is not spendable. This is
             // because of how the reference client inits
             // its database - the genesis transaction isn't actually in the db
@@ -641,7 +641,7 @@ public class LevelDBFullPrunedBlockStore implements FullPrunedBlockStore {
         // TODO Should I chop the last byte off? Seems to work with it left
         // there...
         StoredBlock stored = StoredBlock.deserializeCompact(params, ByteBuffer.wrap(result));
-        stored.getHeader().verifyHeader();
+        stored.getHeader().verifyHeader(stored.getHeight());
 
         if (instrument)
             endMethod("get");
