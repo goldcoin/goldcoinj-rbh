@@ -2,10 +2,11 @@ apply plugin: 'java'
 apply plugin: 'com.google.protobuf'
 apply plugin: 'maven'
 apply plugin: 'eclipse'
+apply plugin: 'maven-publish'
 
 version = '0.15.2'
-archivesBaseName = 'bitcoinj-core'
-eclipse.project.name = 'bitcoinj-core'
+archivesBaseName = 'goldcoinj-rbh-core'
+eclipse.project.name = 'goldcoinj-rbh-core'
 
 dependencies {
     compile 'org.bouncycastle:bcprov-jdk15on:1.60'
@@ -22,6 +23,7 @@ dependencies {
     testImplementation 'org.slf4j:slf4j-jdk14:1.7.25'
     testImplementation 'com.h2database:h2:1.3.167'
     testImplementation 'org.fusesource.leveldbjni:leveldbjni-all:1.8'
+    compile 'com.lambdaworks:scrypt:1.4.0'
 }
 
 sourceCompatibility = 1.7
@@ -58,5 +60,5 @@ task sourcesJar(type: Jar, dependsOn: classes) {
 
 artifacts {
     archives sourcesJar
-    archives javadocJar
+   // archives javadocJar
 }

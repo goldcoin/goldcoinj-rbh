@@ -1,7 +1,7 @@
 apply plugin: 'java'
 apply plugin: 'eclipse'
 
-eclipse.project.name = 'bitcoinj-examples'
+eclipse.project.name = 'goldcoinj-rbh-examples'
 
 dependencies {
     implementation project(':core')
