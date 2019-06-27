@@ -122,10 +122,10 @@ public class CoinTest {
 
     @Test
     public void testToFriendlyString() {
-        assertEquals("1.00 BTC", COIN.toFriendlyString());
-        assertEquals("1.23 BTC", valueOf(1, 23).toFriendlyString());
-        assertEquals("0.001 BTC", COIN.divide(1000).toFriendlyString());
-        assertEquals("-1.23 BTC", valueOf(1, 23).negate().toFriendlyString());
+        assertEquals("1.00 GLC", COIN.toFriendlyString());
+        assertEquals("1.23 GLC", valueOf(1, 23).toFriendlyString());
+        assertEquals("0.001 GLC", COIN.divide(1000).toFriendlyString());
+        assertEquals("-1.23 GLC", valueOf(1, 23).negate().toFriendlyString());
     }
 
     /**
