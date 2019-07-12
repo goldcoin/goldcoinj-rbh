@@ -61,7 +61,7 @@ public final class MonetaryFormat {
     /** Currency code for base 1/1000000 Bitcoin. */
     public static final String CODE_UBTC = "µGLC";
     /** Currency symbol for base 1 Bitcoin. */
-    public static final String SYMBOL_BTC = "\u20bf";
+    public static final String SYMBOL_BTC = "\u01e4";//Ǥ originally "\u20bf";"\u20bf";
     /** Currency symbol for base 1/1000 Bitcoin. */
     public static final String SYMBOL_MBTC = "m" + SYMBOL_BTC;
     /** Currency symbol for base 1/1000000 Bitcoin. */
