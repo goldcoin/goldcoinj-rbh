@@ -560,7 +560,7 @@ public class Block extends Message {
      */
     public BigInteger getDifficultyTargetAsInteger(int height) throws VerificationException {
         BigInteger target = Utils.decodeCompactBits(difficultyTarget);
-        if (target.signum() <= 0 || target.compareTo(height >= params.rbhHeight ? params.maxTargetScrypt : params.maxTargetScrypt) > 0)
+        if (target.signum() <= 0 || target.compareTo(height >= params.rbhHeight ? params.maxTargetScrypt : params.maxTarget) > 0)
             throw new VerificationException("Difficulty target is bad: " + target.toString());
         return target;
     }
