@@ -115,8 +115,8 @@ public class LocalTransactionSigner implements TransactionSigner {
             try {
                 if (ScriptPattern.isP2PK(scriptPubKey) || ScriptPattern.isP2PKH(scriptPubKey)
                         || ScriptPattern.isP2SH(scriptPubKey)) {
-                    TransactionSignature signature = tx.calculateSignature(i, key, script, Transaction.SigHash.ALL,
-                            false);
+                    TransactionSignature signature = tx.calculateSignature(i, key, script, txIn.getValue(), Transaction.SigHash.ALL,
+                            false, propTx.useForkId);
 
                     // at this point we have incomplete inputScript with OP_0 in place of one or more signatures. We
                     // already have calculated the signature using the local key and now need to insert it in the
@@ -136,7 +136,7 @@ public class LocalTransactionSigner implements TransactionSigner {
                             .build();
                     Coin value = txIn.getValue();
                     TransactionSignature signature = tx.calculateWitnessSignature(i, key, scriptCode, value,
-                            Transaction.SigHash.ALL, false);
+                            Transaction.SigHash.ALL, false, propTx.useForkId);
                     txIn.setScriptSig(ScriptBuilder.createEmpty());
                     txIn.setWitness(TransactionWitness.redeemP2WPKH(signature, key));
                 } else {

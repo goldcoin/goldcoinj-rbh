@@ -130,7 +130,8 @@ public class DefaultRiskAnalysis implements RiskAnalysis {
         DUST,
         SHORTEST_POSSIBLE_PUSHDATA,
         NONEMPTY_STACK, // Not yet implemented (for post 0.12)
-        SIGNATURE_CANONICAL_ENCODING
+        SIGNATURE_CANONICAL_ENCODING,
+        SIGNATURE_MISSING_FORKID
     }
 
     /**
@@ -206,6 +207,30 @@ public class DefaultRiskAnalysis implements RiskAnalysis {
         return RuleViolation.NONE;
     }
 
+    /** Checks if the given input passes some of the AreInputsStandard checks. Not complete. */
+    public static RuleViolation isInputSignedWithForkId(TransactionInput input, boolean requireForkId) {
+        for (ScriptChunk chunk : input.getScriptSig().getChunks()) {
+            if (chunk.data != null && !chunk.isShortestPossiblePushData())
+                return RuleViolation.SHORTEST_POSSIBLE_PUSHDATA;
+            if (chunk.isPushData()) {
+                ECDSASignature signature;
+                try {
+                    signature = ECKey.ECDSASignature.decodeFromDER(chunk.data);
+                } catch (SignatureDecodeException x) {
+                    signature = null;
+                } catch(RuntimeException x) {
+                    // Doesn't look like a signature.
+                    signature = null;
+                }
+                if (signature != null && requireForkId) {
+                    if (!TransactionSignature.hasForkId(chunk.data))
+                        return RuleViolation.SIGNATURE_MISSING_FORKID;
+                }
+            }
+        }
+        return RuleViolation.NONE;
+    }
+
     private Result analyzeIsStandard() {
         // The IsStandard rules don't apply on testnet, because they're just a safety mechanism and we don't want to
         // crush innovation with valueless test coins.
@@ -216,6 +241,18 @@ public class DefaultRiskAnalysis implements RiskAnalysis {
         if (ruleViolation != RuleViolation.NONE) {
             nonStandard = tx;
             return Result.NON_STANDARD;
+        }
+
+        //long time = wallet.getLastBlockSeenTimeSecs();
+
+        final List<TransactionInput> inputs = tx.getInputs();
+        for (int i = 0; i < inputs.size(); i++) {
+            TransactionInput input = inputs.get(i);
+            RuleViolation violation = isInputSignedWithForkId(input, true);
+            if (violation != RuleViolation.NONE) {
+                log.warn("TX considered non-standard due to input {} violating rule {}", i, violation);
+                return Result.NON_STANDARD;
+            }
         }
 
         for (Transaction dep : dependencies) {

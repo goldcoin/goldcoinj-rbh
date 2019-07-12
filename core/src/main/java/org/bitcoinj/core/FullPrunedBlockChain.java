@@ -159,11 +159,13 @@ public class FullPrunedBlockChain extends AbstractBlockChain {
         final Transaction tx;
         final List<Script> prevOutScripts;
         final Set<VerifyFlag> verifyFlags;
+        final Coin value;
 
-        public Verifier(final Transaction tx, final List<Script> prevOutScripts, final Set<VerifyFlag> verifyFlags) {
+        public Verifier(final Transaction tx, final List<Script> prevOutScripts, Coin value, final Set<VerifyFlag> verifyFlags) {
             this.tx = tx;
             this.prevOutScripts = prevOutScripts;
             this.verifyFlags = verifyFlags;
+            this.value = value;
         }
 
         @Nullable
@@ -172,7 +174,7 @@ public class FullPrunedBlockChain extends AbstractBlockChain {
             try {
                 ListIterator<Script> prevOutIt = prevOutScripts.listIterator();
                 for (int index = 0; index < tx.getInputs().size(); index++) {
-                    tx.getInputs().get(index).getScriptSig().correctlySpends(tx, index, prevOutIt.next(), verifyFlags);
+                    tx.getInputs().get(index).getScriptSig().correctlySpends(tx, index, prevOutIt.next(), value, verifyFlags);
                 }
             } catch (VerificationException e) {
                 return e;
@@ -311,7 +313,7 @@ public class FullPrunedBlockChain extends AbstractBlockChain {
 
                 if (!isCoinBase && runScripts) {
                     // Because correctlySpends modifies transactions, this must come after we are done with tx
-                    FutureTask<VerificationException> future = new FutureTask<>(new Verifier(tx, prevOutScripts, verifyFlags));
+                    FutureTask<VerificationException> future = new FutureTask<>(new Verifier(tx, prevOutScripts, valueIn, verifyFlags));
                     scriptVerificationExecutor.execute(future);
                     listScriptVerificationResults.add(future);
                 }
@@ -442,7 +444,7 @@ public class FullPrunedBlockChain extends AbstractBlockChain {
 
                     if (!isCoinBase) {
                         // Because correctlySpends modifies transactions, this must come after we are done with tx
-                        FutureTask<VerificationException> future = new FutureTask<>(new Verifier(tx, prevOutScripts, verifyFlags));
+                        FutureTask<VerificationException> future = new FutureTask<>(new Verifier(tx, prevOutScripts, valueIn, verifyFlags));
                         scriptVerificationExecutor.execute(future);
                         listScriptVerificationResults.add(future);
                     }
