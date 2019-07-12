@@ -37,6 +37,7 @@ public class UnitTestParams extends AbstractBitcoinNetParams {
         addressHeader = 111;
         p2shHeader = 196;
         maxTarget = new BigInteger("00ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff", 16);
+        maxTargetScrypt = maxTarget;
         genesisBlock.setTime(System.currentTimeMillis() / 1000);
         genesisBlock.setDifficultyTarget(Block.EASIEST_DIFFICULTY_TARGET);
         genesisBlock.solve(0);
@@ -57,6 +58,10 @@ public class UnitTestParams extends AbstractBitcoinNetParams {
         majorityEnforceBlockUpgrade = 3;
         majorityRejectBlockOutdated = 4;
         majorityWindow = 7;
+
+        rbhHeight = 1457001;
+        rbhTime = 1550170301; // GMT: 14 February 2019 18:51:41;
+        rbhUTXOHeight = 301;
     }
 
     private static UnitTestParams instance;

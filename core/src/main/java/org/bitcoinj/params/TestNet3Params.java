@@ -65,7 +65,7 @@ public class TestNet3Params extends AbstractBitcoinNetParams {
         checkpointPubKey = "04c28a8e186d8cba4cca3e71342f22687bf32525e41be5e0ec33082ee678516b3a6f9c3ae160c0155090c6244d9e7a1f4220179c6690efdc48259c3a3835b3df67";
 
         dnsSeeds = new String[] {
-                "ios1.netseed.net"
+                "ios1.netseed.net",
         };
         addrSeeds = null;
         bip32HeaderP2PKHpub = 0x043587cf; // The 4 byte header that serializes in base58 to "tpub".
