@@ -272,4 +272,14 @@ public class SendRequest {
         helper.add("recipientsPayFees", recipientsPayFees);
         return helper.toString();
     }
+
+    /** Use Version 2 Transactions with forkid signatures **/
+    private boolean useForkId = true;
+
+    public void setForkId(boolean useForkId)
+    {
+        this.useForkId = useForkId;
+    }
+
+    public boolean usingForkId() { return useForkId; }
 }

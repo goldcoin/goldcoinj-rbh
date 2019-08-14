@@ -4260,7 +4260,7 @@ public class Wallet extends BaseTaggableObject
                 txIn.setWitness(scriptPubKey.createEmptyWitness(redeemData.keys.get(0)));
             }
 
-            TransactionSigner.ProposedTransaction proposal = new TransactionSigner.ProposedTransaction(tx);
+            TransactionSigner.ProposedTransaction proposal = new TransactionSigner.ProposedTransaction(tx, req.usingForkId());
             for (TransactionSigner signer : signers) {
                 if (!signer.signInputs(proposal, maybeDecryptingKeyBag))
                     log.info("{} returned false for the tx", signer.getClass().getName());

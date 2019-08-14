@@ -973,7 +973,7 @@ public class FullBlockTestGenerator {
         {
             try {
                 // Inverse solve
-                BigInteger target = b47.block.getDifficultyTargetAsInteger();
+                BigInteger target = b47.block.getDifficultyTargetAsInteger(chainHeadHeight+16);
                 while (true) {
                     BigInteger h = b47.getHash().toBigInteger();
                     if (h.compareTo(target) > 0) // if invalid

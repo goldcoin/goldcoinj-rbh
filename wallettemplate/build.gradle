@@ -7,7 +7,7 @@ apply plugin: 'eclipse'
 apply plugin: 'application'
 apply plugin: 'org.openjfx.javafxplugin'
 
-eclipse.project.name = 'bitcoinj-wallettemplate'
+eclipse.project.name = 'goldcoinj-rbh-wallettemplate'
 
 dependencies {
     implementation project(':core')

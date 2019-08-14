@@ -56,6 +56,11 @@ public class TransactionSignature extends ECKey.ECDSASignature {
         sighashFlags = calcSigHashValue(mode, anyoneCanPay);
     }
 
+    public TransactionSignature(ECKey.ECDSASignature signature, Transaction.SigHash mode, boolean anyoneCanPay, boolean useForkId) {
+        super(signature.r, signature.s);
+        sighashFlags = calcSigHashValue(mode, anyoneCanPay, useForkId);
+    }
+
     /**
      * Returns a dummy invalid signature whose R/S values are set such that they will take up the same number of
      * encoded bytes as a real signature. This can be useful when you want to fill out a transaction to be of the
@@ -76,6 +81,16 @@ public class TransactionSignature extends ECKey.ECDSASignature {
         return sighashFlags;
     }
 
+    public static int calcSigHashValue(Transaction.SigHash mode, boolean anyoneCanPay, boolean useForkId) {
+        Preconditions.checkArgument(SigHash.ALL == mode || SigHash.NONE == mode || SigHash.SINGLE == mode); // enforce compatibility since this code was made before the SigHash enum was updated
+        int sighashFlags = mode.value;
+        if (anyoneCanPay)
+            sighashFlags |= Transaction.SigHash.ANYONECANPAY.value;
+        if(useForkId)
+            sighashFlags |= SigHash.FORKID.value;
+        return sighashFlags;
+    }
+
     /**
      * Returns true if the given signature is has canonical encoding, and will thus be accepted as standard by
      * Bitcoin Core. DER and the SIGHASH encoding allow for quite some flexibility in how the same structures
@@ -93,7 +108,7 @@ public class TransactionSignature extends ECKey.ECDSASignature {
         if (signature.length < 9 || signature.length > 73)
             return false;
 
-        int hashType = (signature[signature.length-1] & 0xff) & ~Transaction.SigHash.ANYONECANPAY.value; // mask the byte to prevent sign-extension hurting us
+        int hashType = (signature[signature.length-1] & 0xff) & ~(Transaction.SigHash.ANYONECANPAY.value| SigHash.FORKID.value); // mask the byte to prevent sign-extension hurting us
         if (hashType < Transaction.SigHash.ALL.value || hashType > Transaction.SigHash.SINGLE.value)
             return false;
 
@@ -154,7 +169,7 @@ public class TransactionSignature extends ECKey.ECDSASignature {
 
     @Override
     public ECKey.ECDSASignature toCanonicalised() {
-        return new TransactionSignature(super.toCanonicalised(), sigHashMode(), anyoneCanPay());
+        return new TransactionSignature(super.toCanonicalised(), sigHashMode(), anyoneCanPay(), useForkId());
     }
 
     /**
@@ -179,5 +194,15 @@ public class TransactionSignature extends ECKey.ECDSASignature {
         // In Bitcoin, any value of the final byte is valid, but not necessarily canonical. See javadocs for
         // isEncodingCanonical to learn more about this. So we must store the exact byte found.
         return new TransactionSignature(sig.r, sig.s, bytes[bytes.length - 1]);
+    }
+
+    public static boolean hasForkId (byte[] signature)
+    {
+        int forkId = (signature[signature.length-1] & 0xff) & SigHash.FORKID.value; // mask the byte to prevent sign-extension hurting us
+        return forkId == SigHash.FORKID.value;
+    }
+
+    public boolean useForkId() {
+        return (sighashFlags & SigHash.FORKID.value) != 0;
     }
 }

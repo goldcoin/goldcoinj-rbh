@@ -37,12 +37,15 @@ public class MainNetParams extends AbstractBitcoinNetParams {
         interval = INTERVAL;
         targetTimespan = TARGET_TIMESPAN;
         maxTarget = Utils.decodeCompactBits(0x1d00ffffL);
-        dumpedPrivateKeyHeader = 128;
-        addressHeader = 0;
-        p2shHeader = 5;
-        segwitAddressHrp = "bc";
-        port = 8333;
-        packetMagic = 0xf9beb4d9L;
+        maxTargetScrypt = Utils.decodeCompactBits(0x1e0fffffL);
+        dumpedPrivateKeyHeader = 160;
+        dumpedPrivateKeyHeader2 = 128;
+        addressHeader = 32;
+        p2shHeader = 50;
+        segwitAddressHrp = "gc";
+        port = 9447;
+        packetMagic = 0xa6d199deL;
+        packetMagicBTC = 0xf9beb4d9L;
         bip32HeaderP2PKHpub = 0x0488b21e; // The 4 byte header that serializes in base58 to "xpub".
         bip32HeaderP2PKHpriv = 0x0488ade4; // The 4 byte header that serializes in base58 to "xprv"
         bip32HeaderP2WPKHpub = 0x04b24746; // The 4 byte header that serializes in base58 to "zpub".
@@ -73,25 +76,18 @@ public class MainNetParams extends AbstractBitcoinNetParams {
         checkpoints.put(200000, Sha256Hash.wrap("000000000000034a7dedef4a161fa058a2d67a173a90155f3a2fe6fc132e0ebf"));
 
         dnsSeeds = new String[] {
-                "seed.bitcoin.sipa.be",         // Pieter Wuille
-                "dnsseed.bluematt.me",          // Matt Corallo
-                "dnsseed.bitcoin.dashjr.org",   // Luke Dashjr
-                "seed.bitcoinstats.com",        // Chris Decker
-                "seed.bitcoin.jonasschnelli.ch",// Jonas Schnelli
-                "seed.btc.petertodd.org",       // Peter Todd
-                "seed.bitcoin.sprovoost.nl",    // Sjors Provoost
-                "seed.bitnodes.io",             // Addy Yeow
-                "dnsseed.emzy.de",              // Stephan Oeste
+                "seed-rbh1.goldcoin.org",
+                "seed-rbh2.goldcoin.org"
         };
-        httpSeeds = new HttpDiscovery.Details[] {
+        httpSeeds = null; /*new HttpDiscovery.Details[] {
                 // Andreas Schildbach
                 new HttpDiscovery.Details(
                         ECKey.fromPublicOnly(Utils.HEX.decode("0238746c59d46d5408bf8b1d0af5740fe1a6e1703fcb56b2953f0b965c740d256f")),
                         URI.create("http://httpseed.bitcoin.schildbach.de/peers")
                 )
-        };
+        };*/
 
-        addrSeeds = new int[] {
+        addrSeeds = null; /*new int[] {
                 0x1ddb1032, 0x6242ce40, 0x52d6a445, 0x2dd7a445, 0x8a53cd47, 0x73263750, 0xda23c257, 0xecd4ed57,
                 0x0a40ec59, 0x75dce160, 0x7df76791, 0x89370bad, 0xa4f214ad, 0x767700ae, 0x638b0418, 0x868a1018,
                 0xcd9f332e, 0x0129653e, 0xcc92dc3e, 0x96671640, 0x56487e40, 0x5b66f440, 0xb1d01f41, 0xf1dc6041,
@@ -132,7 +128,10 @@ public class MainNetParams extends AbstractBitcoinNetParams {
                 0x6d27c257, 0x977fffad, 0x7baa5d5d, 0x1213be43, 0xb167e5a9, 0x640fe8ca, 0xbc9ea655, 0x0f820a4c,
                 0x0f097059, 0x69ac957c, 0x366d8453, 0xb1ba2844, 0x8857f081, 0x70b5be63, 0xc545454b, 0xaf36ded1,
                 0xb5a4b052, 0x21f062d1, 0x72ab89b2, 0x74a45318, 0x8312e6bc, 0xb916965f, 0x8aa7c858, 0xfe7effad,
-        };
+        };*/
+        rbhHeight = 565903;  // TBD
+        rbhTime = 1551874815; // TBD
+        rbhUTXOHeight = 980841;  // TBD
     }
 
     private static MainNetParams instance;

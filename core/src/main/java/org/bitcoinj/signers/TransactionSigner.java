@@ -57,6 +57,14 @@ public interface TransactionSigner {
             this.partialTx = partialTx;
             this.keyPaths = new HashMap<>();
         }
+
+        public ProposedTransaction(Transaction partialTx, boolean useForkId) {
+            this.partialTx = partialTx;
+            this.keyPaths = new HashMap<Script, List<ChildNumber>>();
+            this.useForkId = useForkId;
+        }
+
+        boolean useForkId = false;
     }
 
     class MissingSignatureException extends RuntimeException {

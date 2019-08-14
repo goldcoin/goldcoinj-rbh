@@ -100,7 +100,7 @@ public class StoredBlock {
     public StoredBlock build(Block block) throws VerificationException {
         // Stored blocks track total work done in this chain, because the canonical chain is the one that represents
         // the largest amount of work done not the tallest.
-        BigInteger chainWork = this.chainWork.add(block.getWork());
+        BigInteger chainWork = this.chainWork.add(block.getWork(this.height + 1));
         int height = this.height + 1;
         return new StoredBlock(block, chainWork, height);
     }

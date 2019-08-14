@@ -523,6 +523,7 @@ public class Transaction extends ChildMessage {
         ALL(1),
         NONE(2),
         SINGLE(3),
+        FORKID(0x20),
         ANYONECANPAY(0x80), // Caution: Using this type in isolation is non-standard. Treated similar to ANYONECANPAY_ALL.
         ANYONECANPAY_ALL(0x81),
         ANYONECANPAY_NONE(0x82),
@@ -979,6 +980,70 @@ public class Transaction extends ChildMessage {
     }
 
     /**
+     * Adds a new and fully signed input for the given parameters. Note that this method is <b>not</b> thread safe
+     * and requires external synchronization. Please refer to general documentation on Bitcoin scripting and contracts
+     * to understand the values of sigHash and anyoneCanPay: otherwise you can use the other form of this method
+     * that sets them to typical defaults.
+     *
+     * @throws ScriptException if the scriptPubKey is not a pay to address or pay to pubkey script.
+     */
+    public TransactionInput addSignedInput(TransactionOutPoint prevOut, Script scriptPubKey, ECKey sigKey,
+                                           SigHash sigHash, boolean anyoneCanPay, boolean useForkId) throws ScriptException {
+        // Verify the API user didn't try to do operations out of order.
+        checkState(!outputs.isEmpty(), "Attempting to sign tx without outputs.");
+        TransactionInput input = new TransactionInput(params, this, new byte[] {}, prevOut);
+        addInput(input);
+        int inputIndex = inputs.size() - 1;
+        if (ScriptPattern.isP2PK(scriptPubKey)) {
+            TransactionSignature signature = calculateSignature(inputIndex, sigKey, scriptPubKey, input.getValue(),
+                    sigHash,
+                    anyoneCanPay, useForkId);
+            input.setScriptSig(ScriptBuilder.createInputScript(signature));
+            input.setWitness(null);
+        } else if (ScriptPattern.isP2PKH(scriptPubKey)) {
+            TransactionSignature signature = calculateSignature(inputIndex, sigKey, scriptPubKey, input.getValue(), sigHash,
+                    anyoneCanPay, useForkId);
+            input.setScriptSig(ScriptBuilder.createInputScript(signature, sigKey));
+            input.setWitness(null);
+        } else if (ScriptPattern.isP2WPKH(scriptPubKey)) {
+            Script scriptCode = new ScriptBuilder()
+                    .data(ScriptBuilder.createOutputScript(LegacyAddress.fromKey(params, sigKey)).getProgram()).build();
+            TransactionSignature signature = calculateWitnessSignature(inputIndex, sigKey, scriptCode, input.getValue(),
+                    sigHash, anyoneCanPay, useForkId);
+            input.setScriptSig(ScriptBuilder.createEmpty());
+            input.setWitness(TransactionWitness.redeemP2WPKH(signature, sigKey));
+        } else {
+            throw new ScriptException(ScriptError.SCRIPT_ERR_UNKNOWN_ERROR, "Don't know how to sign for this kind of scriptPubKey: " + scriptPubKey);
+        }
+        return input;
+    }
+
+    /**
+     * Same as {@link #addSignedInput(TransactionOutPoint, Script, ECKey, Transaction.SigHash, boolean)}
+     * but defaults to {@link SigHash#ALL} and "false" for the anyoneCanPay flag. This is normally what you want.
+     */
+    public TransactionInput addSignedInput(TransactionOutPoint prevOut, Script scriptPubKey, ECKey sigKey, boolean useForkId) throws ScriptException {
+        return addSignedInput(prevOut, scriptPubKey, sigKey, SigHash.ALL, false);
+    }
+
+    /**
+     * Adds an input that points to the given output and contains a valid signature for it, calculated using the
+     * signing key.
+     */
+    public TransactionInput addSignedInput(TransactionOutput output, ECKey signingKey, boolean useForkId) {
+        return addSignedInput(output.getOutPointFor(), output.getScriptPubKey(), signingKey, useForkId);
+    }
+
+    /**
+     * Adds an input that points to the given output and contains a valid signature for it, calculated using the
+     * signing key.
+     */
+    public TransactionInput addSignedInput(TransactionOutput output, ECKey signingKey, SigHash sigHash, boolean anyoneCanPay, boolean useForkId) {
+        return addSignedInput(output.getOutPointFor(), output.getScriptPubKey(), signingKey, sigHash, anyoneCanPay, useForkId);
+    }
+
+
+    /**
      * Removes all the outputs from this transaction.
      * Note that this also invalidates the length attribute
      */
@@ -1047,6 +1112,16 @@ public class Transaction extends ChildMessage {
         return new TransactionSignature(key.sign(hash), hashType, anyoneCanPay);
     }
 
+    public TransactionSignature calculateSignature(int inputIndex, ECKey key,
+                                                   byte[] redeemScript, Coin value,
+                                                   SigHash hashType, boolean anyoneCanPay, boolean useForkId) {
+        if(useForkId) {
+            //redeemScript = ScriptBuilder.createOutputScript(LegacyAddress.fromKey(params, key)).getProgram();
+            return calculateWitnessSignature(inputIndex, key, redeemScript, value, hashType, anyoneCanPay, useForkId);
+        }
+        Sha256Hash hash = hashForSignature(inputIndex, redeemScript, hashType, anyoneCanPay);
+        return new TransactionSignature(key.sign(hash), hashType, anyoneCanPay, useForkId);
+    }
     /**
      * Calculates a signature that is valid for being inserted into the input at the given position. This is simply
      * a wrapper around calling {@link Transaction#hashForSignature(int, byte[], Transaction.SigHash, boolean)}
@@ -1064,6 +1139,19 @@ public class Transaction extends ChildMessage {
                                                                  SigHash hashType, boolean anyoneCanPay) {
         Sha256Hash hash = hashForSignature(inputIndex, redeemScript.getProgram(), hashType, anyoneCanPay);
         return new TransactionSignature(key.sign(hash), hashType, anyoneCanPay);
+    }
+
+    public TransactionSignature calculateSignature(int inputIndex, ECKey key,
+                                                   Script redeemScript, Coin value,
+                                                   SigHash hashType, boolean anyoneCanPay, boolean useForkId) {
+        if(useForkId) {
+            //redeemScript = new ScriptBuilder().data(
+            //        ScriptBuilder.createOutputScript(LegacyAddress.fromKey(params, key)).getProgram())
+            //        .build();
+            return calculateWitnessSignature(inputIndex, key, redeemScript, value, hashType, anyoneCanPay, useForkId);
+        }
+        Sha256Hash hash = hashForSignature(inputIndex, redeemScript.getProgram(), hashType, anyoneCanPay);
+        return new TransactionSignature(key.sign(hash), hashType, anyoneCanPay, useForkId);
     }
 
     /**
@@ -1088,6 +1176,15 @@ public class Transaction extends ChildMessage {
         return new TransactionSignature(key.sign(hash, aesKey), hashType, anyoneCanPay);
     }
 
+    public TransactionSignature calculateSignature(int inputIndex, ECKey key,
+                                                   @Nullable KeyParameter aesKey,
+                                                   byte[] redeemScript, Coin value,
+                                                   SigHash hashType, boolean anyoneCanPay, boolean useForkId) {
+        if(useForkId)
+            return calculateWitnessSignature(inputIndex, key, aesKey, redeemScript, value, hashType, anyoneCanPay, useForkId);
+        Sha256Hash hash = hashForSignature(inputIndex, redeemScript, hashType, anyoneCanPay);
+        return new TransactionSignature(key.sign(hash, aesKey), hashType, anyoneCanPay, useForkId);
+    }
     /**
      * Calculates a signature that is valid for being inserted into the input at the given position. This is simply
      * a wrapper around calling {@link Transaction#hashForSignature(int, byte[], Transaction.SigHash, boolean)}
@@ -1107,6 +1204,16 @@ public class Transaction extends ChildMessage {
                                                    SigHash hashType, boolean anyoneCanPay) {
         Sha256Hash hash = hashForSignature(inputIndex, redeemScript.getProgram(), hashType, anyoneCanPay);
         return new TransactionSignature(key.sign(hash, aesKey), hashType, anyoneCanPay);
+    }
+
+    public TransactionSignature calculateSignature(int inputIndex, ECKey key,
+                                                   @Nullable KeyParameter aesKey,
+                                                   Script redeemScript, Coin value,
+                                                   SigHash hashType, boolean anyoneCanPay, boolean useForkId) {
+        if(useForkId)
+            return calculateWitnessSignature(inputIndex, key, aesKey, redeemScript, value, hashType, anyoneCanPay, useForkId);
+        Sha256Hash hash = hashForSignature(inputIndex, redeemScript.getProgram(), hashType, anyoneCanPay);
+        return new TransactionSignature(key.sign(hash, aesKey), hashType, anyoneCanPay, useForkId);
     }
 
     /**
@@ -1285,13 +1392,60 @@ public class Transaction extends ChildMessage {
         return calculateWitnessSignature(inputIndex, key, aesKey, scriptCode.getProgram(), value, hashType, anyoneCanPay);
     }
 
+    public TransactionSignature calculateWitnessSignature(
+            int inputIndex,
+            ECKey key,
+            byte[] scriptCode,
+            Coin value,
+            SigHash hashType,
+            boolean anyoneCanPay,
+            boolean useForkId) {
+        Sha256Hash hash = hashForWitnessSignature(inputIndex, scriptCode, value, hashType, anyoneCanPay);
+        return new TransactionSignature(key.sign(hash), hashType, anyoneCanPay, useForkId);
+    }
+
+    public TransactionSignature calculateWitnessSignature(
+            int inputIndex,
+            ECKey key,
+            Script scriptCode,
+            Coin value,
+            SigHash hashType,
+            boolean anyoneCanPay,
+            boolean useForkId) {
+        return calculateWitnessSignature(inputIndex, key, scriptCode.getProgram(), value, hashType, anyoneCanPay, useForkId);
+    }
+
+    public TransactionSignature calculateWitnessSignature(
+            int inputIndex,
+            ECKey key,
+            @Nullable KeyParameter aesKey,
+            byte[] scriptCode,
+            Coin value,
+            SigHash hashType,
+            boolean anyoneCanPay,
+            boolean useForkId) {
+        Sha256Hash hash = hashForWitnessSignature(inputIndex, scriptCode, value, hashType, anyoneCanPay);
+        return new TransactionSignature(key.sign(hash, aesKey), hashType, anyoneCanPay, useForkId);
+    }
+
+    public TransactionSignature calculateWitnessSignature(
+            int inputIndex,
+            ECKey key,
+            @Nullable KeyParameter aesKey,
+            Script scriptCode,
+            Coin value,
+            SigHash hashType,
+            boolean anyoneCanPay,
+            boolean useForkId) {
+        return calculateWitnessSignature(inputIndex, key, aesKey, scriptCode.getProgram(), value, hashType, anyoneCanPay, useForkId);
+    }
     public synchronized Sha256Hash hashForWitnessSignature(
             int inputIndex,
             byte[] scriptCode,
             Coin prevValue,
             SigHash type,
             boolean anyoneCanPay) {
-        int sigHash = TransactionSignature.calcSigHashValue(type, anyoneCanPay);
+        int sigHash = TransactionSignature.calcSigHashValue(type, anyoneCanPay, true);
         return hashForWitnessSignature(inputIndex, scriptCode, prevValue, (byte) sigHash);
     }
 

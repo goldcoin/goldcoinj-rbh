@@ -735,4 +735,69 @@ public class TransactionTest {
             uint32ToByteStreamLE(getLockTime(), stream);
         }
     }
+
+    /*
+    output from goldcoind:
+2019-07-12T05:10:28Z SignatureHash -----------
+2019-07-12T05:10:28Z script code: 76a9141fea4e00c7660ca0ffb2f9c7706fccd6bf21673788ac
+2019-07-12T05:10:29Z txTo: CTransaction(hash=ae1778a24b, ver=2, vin.size=1, vout.size=1, nLockTime=1469718)
+    CTxIn(COutPoint(57ebcf5c37, 0), scriptSig=, nSequence=4294967294)
+    CScriptWitness()
+    CTxOut(nValue=0.09999620, scriptPubKey=a91440cefd9c4048e87632bbb70826)
+​
+2019-07-12T05:10:29Z nIn: 0
+2019-07-12T05:10:29Z hashType: 33
+2019-07-12T05:10:29Z hashPrevOuts: 7beee80b337743be8114394ad07ef13be5374e573f31c6f19c94777a27878dff
+2019-07-12T05:10:29Z hashSequence: 98e1ab8ccf276338158add89a78f1ef0dcad0c2f35bc665256bfd80c356b6018
+2019-07-12T05:10:29Z hashOutputs: 75e6fb09e65cf9c63bf0ba26d4e1ca9ef4fa5c1ac57dd3cdfea1737ffffabf9e
+2019-07-12T05:10:29Z prevout value: 9999809
+2019-07-12T05:10:29Z prevout: COutPoint(57ebcf5c37, 0)
+2019-07-12T05:10:29Z sequence: 4294967294
+2019-07-12T05:10:29Z locktime: 1469718
+2019-07-12T05:10:29Z hashType: 33
+2019-07-12T05:10:29Z signatureHash: ad0ec449b60c86fc914e6f0b2bd12c8d9aa0fab9b457ca23e105d2a103d378e6
+     */
+
+    @Test
+    public void testSignatures() {
+        byte [] txData = Utils.HEX.decode("020000000176798adce1773912949edac7e7527a8a149c1cf9fa6c936fbf1ad1375ccfeb57000000006a4730440220448bc90db46320538c6f94eb914941b5dfffa60e0fb9df795525089eb2788ebc0220500376725ffa08d77ae32a5d151b42bdc6e7ded66d78f6d873131da442e25d62212102d590494c482551db0283070acbf2d92cd710b26d2a8a2cecb0159121d041aad7feffffff01049598000000000017a91440cefd9c4048e87632bbb708265b621264adfc1287166d1600");
+        byte [] fromTxData = Utils.HEX.decode("0200000001bf00d00b699be7aa3df0f8577379c851a4a09e253c0b4c31dc68b8b4fac5e6c4000000006a4730440220592abd6385330b96c56788dfb67df3c48651e30c9cb1274ec86321b85019e18002203ded97b1b85a3904893fb5c354c784843bdacbf20b0e473d9772ca370de45f9c212103f6499aa7979d505be6944f7c5713c0b5f1d2456b22f27c7372a77612a64d744efeffffff01c1959800000000001976a9141fea4e00c7660ca0ffb2f9c7706fccd6bf21673788aca36c1600");
+
+        Transaction fromTx = new Transaction(TESTNET, fromTxData);
+        Transaction tx = new Transaction(TESTNET, txData);
+
+        assertEquals("76a9141fea4e00c7660ca0ffb2f9c7706fccd6bf21673788ac", HEX.encode(fromTx.getOutput(0).getScriptPubKey().getProgram()));
+        assertEquals(9999809, fromTx.getOutput(0).getValue().value);
+        assertEquals(1469718, tx.getLockTime());
+        assertTrue(tx.getInput(0).getOutpoint().getHash().toString().startsWith("57ebcf5c37"));
+        assertEquals(0, tx.getInput(0).getIndex());
+        Sha256Hash sigHash = tx.hashForWitnessSignature(0, fromTx.getOutput(0).getScriptPubKey().getProgram(),
+                fromTx.getOutput(0).getValue(), (byte)33);
+
+        assertEquals("ad0ec449b60c86fc914e6f0b2bd12c8d9aa0fab9b457ca23e105d2a103d378e6", sigHash.toString());
+
+
+        tx.getInput(0).getScriptSig().correctlySpends(tx, 0, fromTx.getOutput(0).getScriptPubKey(), fromTx.getOutput(0).getValue(), EnumSet.of(Script.VerifyFlag.ENABLESIGHASHFORKID, Script.VerifyFlag.STRICTENC, Script.VerifyFlag.LOW_S, Script.VerifyFlag.DERSIG));
+    }
+
+    @Ignore
+    @Test
+    public void testHashForSignature()
+    {
+        MainNetParams MAIN = new MainNetParams();
+        //String dumpedPrivateKey = "KyYyHLChvJKrM4kxCEpdmqR2usQoET2V1JbexZjaxV36wytPw7v1";
+        //DumpedPrivateKey dumpedPrivateKey1 = DumpedPrivateKey.fromBase58(MAIN, dumpedPrivateKey);
+        //ECKey key = dumpedPrivateKey1.getKey();
+
+        String txData = "0200000001411d29708a0b4165910fbc73b6efbd3d183b1bf457d8840beb23874714c41f61010000006a47304402204b3b868a9a966c44fb05f2cfb3c888b5617435d00ebe1dfe4bd452fd538592d90220626adfb79def08c0375de226b77cefbd3c659aad299dfe950539d01d2770132a41210354662c29cec7074ad26af8664bffdb7f540990ece13a872da5fdfa8be019563efeffffff027f5a1100000000001976a914dcbfe1b282c167c1942a2bdc927de8b4a368146588ac400d0300000000001976a914fb57314db46dd11b4a99c16779a5e160858df43888acd74f0700";
+        String txConnectedData = "020000000284ff1fbdee5aeeaf7976ddfb395e00066c150d4ed90da089f5b47e46215dc23c010000006b4830450221008e1f85698b5130f2dd56236541f2b2c1f7676721acebbbdc3c8711a345d2f96b022065f1f2ea915b8844319b3e81e33cb6a26ecee838dc0060248b10039e994ab1e641210248dd879c54147390a12f8e8a7aa8f23ce2659a996fa7bf756d6b2187d8ed624ffeffffffefd0db693d73d8087eb1f44916be55ee025f25d7a3dbcf82e3318e56e6ccded9000000006a4730440221009c6ba90ca215ce7ad270e6688940aa6d97be6c901a430969d9d88bef7c8dc607021f51d088dadcaffbd88e5514afedfa9e2cac61a1024aaa4c88873361193e4da24121039cc4a69e1e93ebadab2870c69cb4feb0c1c2bfad38be81dda2a72c57d8b14e11feffffff0230c80700000000001976a914517abefd39e71c633bd5a23fd75b5dbd47bc461b88acc8911400000000001976a9147b983c4efaf519e9caebde067b6495e5dcc491cb88acba4f0700";
+        Transaction txConnected = new Transaction(MAIN, HEX.decode(txConnectedData));
+        Transaction tx = new Transaction(MAIN, HEX.decode(txData));
+
+        Script sig = tx.getInput(0).getScriptSig();
+
+        sig.correctlySpends(tx, 0, txConnected.getOutput(1).getScriptPubKey(), txConnected.getOutput(1).getValue(), Script.ALL_VERIFY_FLAGS);
+
+
+    }
 }

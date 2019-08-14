@@ -104,6 +104,7 @@ public class Block extends Message {
 
     /** Stores the hash of the block. If null, getHash() will recalculate it. */
     private Sha256Hash hash;
+    private Sha256Hash powHash;
 
     protected boolean headerBytesValid;
     protected boolean transactionBytesValid;
@@ -383,6 +384,7 @@ public class Block extends Message {
         if (!transactionBytesValid)
             payload = null;
         hash = null;
+        powHash = null;
     }
 
     private void unCacheTransactions() {
@@ -412,6 +414,20 @@ public class Block extends Message {
     }
 
     /**
+     * Calculates the block POW hash by serializing the block and hashing the
+     * resulting bytes.
+     */
+    private Sha256Hash calculatePowHash() {
+        try {
+            ByteArrayOutputStream bos = new UnsafeByteArrayOutputStream(HEADER_SIZE);
+            writeHeader(bos);
+            return Sha256Hash.wrapReversed(Sha256Hash.hashScrypt(bos.toByteArray()));
+        } catch (IOException e) {
+            throw new RuntimeException(e); // Cannot happen.
+        }
+    }
+
+    /**
      * Returns the hash of the block (which for a valid, solved block should be below the target) in the form seen on
      * the block explorer. If you call this on block 1 in the mainnet chain
      * you will get "00000000839a8e6886ab5951d76f411475428afc90947ee320161bbf18eb6048".
@@ -432,6 +448,16 @@ public class Block extends Message {
     }
 
     /**
+     * Returns the POW hash of the block (which for a valid, solved block should be
+     * below the target). Big endian.
+     */
+    public Sha256Hash getPowHash() {
+        if (powHash == null)
+            powHash = calculatePowHash();
+        return powHash;
+    }
+
+    /**
      * The number that is one greater than the largest representable SHA-256
      * hash.
      */
@@ -446,7 +472,10 @@ public class Block extends Message {
      * lower, the amount of work goes up.
      */
     public BigInteger getWork() throws VerificationException {
-        BigInteger target = getDifficultyTargetAsInteger();
+        return getWork(params.rbhHeight -1 );
+    }
+    public BigInteger getWork(int height) throws VerificationException {
+        BigInteger target = getDifficultyTargetAsInteger(height);
         return LARGEST_HASH.divide(target.add(BigInteger.ONE));
     }
 
@@ -467,6 +496,7 @@ public class Block extends Message {
         block.difficultyTarget = difficultyTarget;
         block.transactions = null;
         block.hash = getHash();
+        block.powHash = getPowHash();
     }
 
     /**
@@ -507,10 +537,13 @@ public class Block extends Message {
      * extraNonce.</p>
      */
     public void solve() {
+        solve((int)params.rbhHeight - 1);
+    }
+    public void solve(int height) {
         while (true) {
             try {
                 // Is our proof of work valid yet?
-                if (checkProofOfWork(false))
+                if (checkProofOfWork(false, height))
                     return;
                 // No, so increment the nonce and try again.
                 setNonce(getNonce() + 1);
@@ -525,15 +558,15 @@ public class Block extends Message {
      * target is represented using a compact form. If this form decodes to a value that is out of bounds, an exception
      * is thrown.
      */
-    public BigInteger getDifficultyTargetAsInteger() throws VerificationException {
+    public BigInteger getDifficultyTargetAsInteger(int height) throws VerificationException {
         BigInteger target = Utils.decodeCompactBits(difficultyTarget);
-        if (target.signum() <= 0 || target.compareTo(params.maxTarget) > 0)
+        if (target.signum() <= 0 || target.compareTo(height >= params.rbhHeight ? params.maxTargetScrypt : params.maxTarget) > 0)
             throw new VerificationException("Difficulty target is bad: " + target.toString());
         return target;
     }
 
     /** Returns true if the hash of the block is OK (lower than difficulty target). */
-    protected boolean checkProofOfWork(boolean throwException) throws VerificationException {
+    protected boolean checkProofOfWork(boolean throwException, int height) throws VerificationException {
         // This part is key - it is what proves the block was as difficult to make as it claims
         // to be. Note however that in the context of this function, the block can claim to be
         // as difficult as it wants to be .... if somebody was able to take control of our network
@@ -542,9 +575,11 @@ public class Block extends Message {
         //
         // To prevent this attack from being possible, elsewhere we check that the difficultyTarget
         // field is of the right value. This requires us to have the preceding blocks.
-        BigInteger target = getDifficultyTargetAsInteger();
+        if(height == -1)
+            return true;
+        BigInteger target = getDifficultyTargetAsInteger(height);
 
-        BigInteger h = getHash().toBigInteger();
+        BigInteger h = height >= params.rbhHeight ? getPowHash().toBigInteger() : getHash().toBigInteger();
         if (h.compareTo(target) > 0) {
             // Proof of work check failed!
             if (throwException)
@@ -708,13 +743,13 @@ public class Block extends Message {
      *
      * @throws VerificationException
      */
-    public void verifyHeader() throws VerificationException {
+    public void verifyHeader(int height) throws VerificationException {
         // Prove that this block is OK. It might seem that we can just ignore most of these checks given that the
         // network is also verifying the blocks, but we cannot as it'd open us to a variety of obscure attacks.
         //
         // Firstly we need to ensure this block does in fact represent real work done. If the difficulty is high
         // enough, it's probably been done by the network.
-        checkProofOfWork(true);
+        checkProofOfWork(true, height);
         checkTimestamp();
     }
 
@@ -752,7 +787,7 @@ public class Block extends Message {
      * @throws VerificationException if there was an error verifying the block.
      */
     public void verify(final int height, final EnumSet<VerifyFlag> flags) throws VerificationException {
-        verifyHeader();
+        verifyHeader(height);
         verifyTransactions(height, flags);
     }
 
@@ -785,6 +820,7 @@ public class Block extends Message {
         unCacheHeader();
         merkleRoot = value;
         hash = null;
+        powHash = null;
     }
 
     /**
@@ -817,6 +853,7 @@ public class Block extends Message {
         // Force a recalculation next time the values are needed.
         merkleRoot = null;
         hash = null;
+        powHash = null;
     }
 
     /** Returns the version of the block data structure as defined by the Bitcoin protocol. */
@@ -835,6 +872,7 @@ public class Block extends Message {
         unCacheHeader();
         this.prevBlockHash = prevBlockHash;
         this.hash = null;
+        this.powHash = null;
     }
 
     /**
@@ -990,9 +1028,9 @@ public class Block extends Message {
             b.setTime(getTimeSeconds() + 1);
         else
             b.setTime(time);
-        b.solve();
+        b.solve(height);
         try {
-            b.verifyHeader();
+            b.verifyHeader(height);
         } catch (VerificationException e) {
             throw new RuntimeException(e); // Cannot happen.
         }

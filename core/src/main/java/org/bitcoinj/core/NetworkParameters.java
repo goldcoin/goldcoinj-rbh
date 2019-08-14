@@ -52,11 +52,18 @@ public abstract class NetworkParameters {
     public static final byte[] SATOSHI_KEY = Utils.HEX.decode("04fc9702847840aaf195de8442ebecedf5b095cdbb9bc716bda9110971b28a49e0ead8564ff0db22209e0374782c093bb899692d524e9d6a6956e7c5ecbcd68284");
 
     /** The string returned by getId() for the main, production network where people trade things. */
-    public static final String ID_MAINNET = "org.bitcoin.production";
+    public static final String ID_MAINNET = "org.goldcoin.production";
     /** The string returned by getId() for the testnet. */
-    public static final String ID_TESTNET = "org.bitcoin.test";
+    public static final String ID_TESTNET = "org.goldcoin.test";
     /** The string returned by getId() for regtest mode. */
-    public static final String ID_REGTEST = "org.bitcoin.regtest";
+    public static final String ID_REGTEST = "org.goldcoin.regtest";
+
+    /** The string returned by getId() for the main, production network where people trade things. */
+    public static final String ID_MAINNET2 = "org.bitcoin.production";
+    /** The string returned by getId() for the testnet. */
+    public static final String ID_TESTNET2 = "org.bitcoin.test";
+    /** The string returned by getId() for regtest mode. */
+    public static final String ID_REGTEST2 = "org.bitcoin.regtest";
     /** Unit test network. */
     public static final String ID_UNITTESTNET = "org.bitcoinj.unittest";
 
@@ -72,11 +79,14 @@ public abstract class NetworkParameters {
 
     protected Block genesisBlock;
     protected BigInteger maxTarget;
+    protected BigInteger maxTargetScrypt;
     protected int port;
     protected long packetMagic;  // Indicates message origin network and is used to seek to the next message when stream state is unknown.
+    protected long packetMagicBTC;
     protected int addressHeader;
     protected int p2shHeader;
     protected int dumpedPrivateKeyHeader;
+    protected int dumpedPrivateKeyHeader2;
     protected String segwitAddressHrp;
     protected int interval;
     protected int targetTimespan;
@@ -85,6 +95,10 @@ public abstract class NetworkParameters {
     protected int bip32HeaderP2PKHpriv;
     protected int bip32HeaderP2WPKHpub;
     protected int bip32HeaderP2WPKHpriv;
+    protected String checkpointPubKey;
+    protected int rbhHeight;
+    protected long rbhTime;
+    protected int rbhUTXOHeight;
 
     /** Used to check majorities for block version upgrade */
     protected int majorityEnforceBlockUpgrade;
@@ -182,13 +196,13 @@ public abstract class NetworkParameters {
     /** Returns the network parameters for the given string ID or NULL if not recognized. */
     @Nullable
     public static NetworkParameters fromID(String id) {
-        if (id.equals(ID_MAINNET)) {
+        if (id.equals(ID_MAINNET) || id.equals(ID_MAINNET2)) {
             return MainNetParams.get();
-        } else if (id.equals(ID_TESTNET)) {
+        } else if (id.equals(ID_TESTNET) || id.equals(ID_TESTNET2)) {
             return TestNet3Params.get();
         } else if (id.equals(ID_UNITTESTNET)) {
             return UnitTestParams.get();
-        } else if (id.equals(ID_REGTEST)) {
+        } else if (id.equals(ID_REGTEST) || id.equals(ID_REGTEST2)) {
             return RegTestParams.get();
         } else {
             return null;
@@ -303,6 +317,11 @@ public abstract class NetworkParameters {
         return dumpedPrivateKeyHeader;
     }
 
+    /** First byte of a base58 encoded dumped private key (bitcoin). See {@link DumpedPrivateKey}. */
+    public int getDumpedPrivateKeyHeader2() {
+        return dumpedPrivateKeyHeader;
+    }
+
     /** Human readable part of bech32 encoded segwit address. */
     public String getSegwitAddressHrp() {
         return segwitAddressHrp;
@@ -334,6 +353,10 @@ public abstract class NetworkParameters {
         return maxTarget;
     }
 
+    /** Maximum target represents the easiest allowable proof of work. */
+    public BigInteger getMaxTargetScrypt() {
+        return maxTargetScrypt;
+    }
     /**
      * The key used to sign {@link AlertMessage}s. You can use {@link ECKey#verify(byte[], byte[], byte[])} to verify
      * signatures using it.
